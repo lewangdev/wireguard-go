@@ -41,6 +41,18 @@ const (
 
 // makeWintun creates a Wintun interface handle and populates it from the device's registry key.
 func makeWintun(deviceInfoSet setupapi.DevInfo, deviceInfoData *setupapi.DevInfoData, pool Pool) (*Interface, error) {
+	// Check the Hardware ID to make sure it's a real Wintun device first.
+	// This avoids doing slow operations on non-Wintun devices.
+	const SPDRP_HARDWAREID = 0x00000001
+	p, err := setupapi.SetupDiGetDeviceRegistryProperty(deviceInfoSet, deviceInfoData, SPDRP_HARDWAREID)
+	if err != nil {
+		return nil, err
+	}
+	hwid := p.([]string)[0]
+	if hwid != hardwareID {
+		return nil, fmt.Errorf("Device is type %v instead of %v", hwid, hardwareID)
+	}
+
 	// Open HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Class\<class>\<id> registry key.
 	key, err := deviceInfoSet.OpenDevRegKey(deviceInfoData, setupapi.DICS_FLAG_GLOBAL, 0, setupapi.DIREG_DRV, registry.QUERY_VALUE)
 	if err != nil {
