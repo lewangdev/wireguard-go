@@ -300,12 +300,16 @@ func (device *Device) ConsumeMessageInitiation(msg *MessageInitiation) *Peer {
 
 	// protect against replay & flood
 
-	var ok bool
-	ok = timestamp.After(handshake.lastTimestamp)
+	replay := !timestamp.After(handshake.lastTimestamp)
 	now := time.Now()
-	ok = ok && handshake.initiationLimit.CanTake(now)
+	flood := !handshake.initiationLimit.CanTake(now)
 	handshake.mutex.RUnlock()
-	if !ok {
+	if replay {
+		device.log.Debug.Printf("%v - ConsumeMessageInitiation: handshake replay @ %v\n", peer, timestamp)
+		return nil
+	}
+	if flood {
+		device.log.Debug.Printf("%v - ConsumeMessageInitiation: handshake flood\n", peer)
 		return nil
 	}
 
