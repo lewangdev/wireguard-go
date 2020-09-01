@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: MIT
  *
- * Copyright (C) 2018-2019 WireGuard LLC. All Rights Reserved.
+ * Copyright (C) 2018-2020 WireGuard LLC. All Rights Reserved.
  */
 
 package tun
@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"sync"
 	"sync/atomic"
 	"time"
 	"unsafe"
@@ -35,11 +36,12 @@ type NativeTun struct {
 	wt        *wintun.Interface
 	handle    windows.Handle
 	close     bool
-	rings     wintun.RingDescriptor
 	events    chan Event
 	errors    chan error
 	forcedMTU int
 	rate      rateJuggler
+	rings     *wintun.RingDescriptor
+	writeLock sync.Mutex
 }
 
 const WintunPool = wintun.Pool("WireGuard")
@@ -93,13 +95,13 @@ func CreateTUNWithRequestedGUID(ifname string, requestedGUID *windows.GUID, mtu 
 		forcedMTU: forcedMTU,
 	}
 
-	err = tun.rings.Init()
+	tun.rings, err = wintun.NewRingDescriptor()
 	if err != nil {
 		tun.Close()
 		return nil, fmt.Errorf("Error creating events: %v", err)
 	}
 
-	tun.handle, err = tun.wt.Register(&tun.rings)
+	tun.handle, err = tun.wt.Register(tun.rings)
 	if err != nil {
 		tun.Close()
 		return nil, fmt.Errorf("Error registering rings: %v", err)
@@ -218,6 +220,9 @@ func (tun *NativeTun) Write(buff []byte, offset int) (int, error) {
 	packetSize := uint32(len(buff) - offset)
 	tun.rate.update(uint64(packetSize))
 	alignedPacketSize := wintun.PacketAlign(uint32(unsafe.Sizeof(wintun.PacketHeader{})) + packetSize)
+
+	tun.writeLock.Lock()
+	defer tun.writeLock.Unlock()
 
 	buffHead := atomic.LoadUint32(&tun.rings.Receive.Ring.Head)
 	if buffHead >= wintun.PacketCapacity {

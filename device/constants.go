@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: MIT
  *
- * Copyright (C) 2017-2019 WireGuard LLC. All Rights Reserved.
+ * Copyright (C) 2017-2020 WireGuard LLC. All Rights Reserved.
  */
 
 package device
@@ -12,8 +12,8 @@ import (
 /* Specification constants */
 
 const (
-	RekeyAfterMessages      = (1 << 64) - (1 << 16) - 1
-	RejectAfterMessages     = (1 << 64) - (1 << 4) - 1
+	RekeyAfterMessages      = (1 << 60)
+	RejectAfterMessages     = (1 << 64) - (1 << 13) - 1
 	RekeyAfterTime          = time.Second * 120
 	RekeyAttemptTime        = time.Second * 90
 	RekeyTimeout            = time.Second * 5
