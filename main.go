@@ -59,7 +59,7 @@ func main() {
 		return
 	}
 
-	warning()
+	// warning()
 
 	var foreground bool
 	var interfaceName string
